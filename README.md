@@ -65,8 +65,8 @@ mkdir -p in out
 in/
 ├── kadai_w01.pdf
 ├── grading_w01.txt
-├── 2CC1.xlsx
-└── 2CC1/
+├── 2CEP1.xlsx
+└── 2CEP1/
     └── DATA_w01_20261126.zip
 ```
 
@@ -92,7 +92,7 @@ in/
 
 ### 提出PDFのファイル名
 
-**学籍番号がファイル名に含まれていることを推奨します．** 特定のLMS固有の長いファイル名である必要はありません．同梱の設定例の正規表現は独立した7桁の学籍番号，または `20` で始まる4桁の年と7桁の学籍番号を連結した形式に対応します．例えば `1234567.pdf`，`report_w05_1234567.pdf`，`2CC1-001_20261234567.pdf` から学籍番号 `1234567` を抽出できます．
+**学籍番号がファイル名に含まれていることを推奨します．** 特定のLMS固有の長いファイル名である必要はありません．同梱の設定例の正規表現は独立した7桁の学籍番号，または `20` で始まる4桁の年と7桁の学籍番号を連結した形式に対応します．例えば `1234567.pdf`，`report_w05_1234567.pdf`，`2CEP1-001_20261234567.pdf` から学籍番号 `1234567` を抽出できます．
 
 抽出規則は設定ファイルで変更できます（`filename_patterns` は必須です）．異なる学籍番号体系やLMSを利用する場合は `[matching].filename_patterns` を調整してください．各正規表現には名簿上の学籍番号を抽出するキャプチャグループを1個だけ指定します．設定例：
 
@@ -178,8 +178,8 @@ CLIと同じ `config.toml` およびキャッシュを使います．
 
 ```bash
 .venv/bin/python grade_reports.py \
-    in/kadai_w01.pdf in/2CC1/DATA_w01_20261126.zip in/2CC1.xlsx \
-    --output-dir out/2CC1
+    in/kadai_w01.pdf in/2CEP1/DATA_w01_20261126.zip in/2CEP1.xlsx \
+    --output-dir out/2CEP1
 ```
 
 ### AI採点を含む集計
@@ -203,8 +203,8 @@ CLIと同じ `config.toml` およびキャッシュを使います．
 
 ```bash
 .venv/bin/python grade_reports.py \
-    in/kadai_w01.pdf in/2CC1/DATA_w01_20261126.zip in/2CC1.xlsx \
-    --grading in/grading_w01.txt --output-dir out/2CC1
+    in/kadai_w01.pdf in/2CEP1/DATA_w01_20261126.zip in/2CEP1.xlsx \
+    --grading in/grading_w01.txt --output-dir out/2CEP1
 ```
 
 ### 主なオプション
@@ -224,7 +224,7 @@ CLIと同じ `config.toml` およびキャッシュを使います．
 ## 6．処理結果と採点の確認
 
 ```text
-out/2CC1/DATA_w01_20261126/
+out/2CEP1/DATA_w01_20261126/
 ├── DATA_w01_20261126.xlsx
 ├── grading-plan.json         # AI採点時
 ├── graded/                   # AI採点結果付きPDF（有効時）
