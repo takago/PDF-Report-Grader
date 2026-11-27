@@ -1,0 +1,78 @@
+[output]
+# ZIP results are grouped here; directory input is processed in place.
+directory = "out"
+
+[vlm]
+enabled = false
+base_url = "http://localhost:8000/v1"
+api_key = ""
+model = ""
+# auto: omit API parameter; none / low / medium / high: send reasoning_effort.
+reasoning_effort = "none"
+# Internal rendering, registration and difference detection.
+dpi = 200
+# VLM input resolution (50..dpi); OCR inherits dpi; descriptions default to min(150, dpi).
+ocr_dpi = 200
+description_dpi = 150
+# png (lossless) or jpeg (smaller transfer size).
+image_format = "jpeg"
+jpeg_quality = 85
+# OCR and page descriptions.
+max_tokens = 2048
+# Structured image grading; independent of the normal VLM output limit.
+grading_max_tokens = 4096
+# Sampling parameters; advance seed on retries to avoid repeating bad output.
+seed = 42
+temperature = 0.2
+retry_change_seed = true
+# Hard character limit for descriptions only (OCR is not truncated).
+description_max_chars = 1000
+timeout = 180
+# SSE streaming; show reasoning and answer text live in the terminal.
+stream = true
+show_stream_output = true
+stream_include_usage = true
+# Retry transient HTTP/network and invalid model responses.
+max_retries = 2
+retry_interval = 1.0
+cache_dir = ".cache/vlm"
+# false: inspect every page (recommended); true: skip pages with almost no visual difference.
+skip_no_diff = false
+
+[matching]
+# Capture exactly one group: the student ID as listed in the roster.
+# Search the entire original filename stem; all rules are evaluated.
+filename_patterns = [
+    '(?<![0-9])([0-9]{7})(?![0-9])',
+    '(?<![0-9])20[0-9]{2}([0-9]{7})(?![0-9])',
+]
+
+[logging]
+level = "normal" # simple / normal / debug
+show_timing = true
+
+[grading]
+# Used only when --grading is supplied. Text LLM for rubric compilation and evidence checks.
+# text: all extracted text and summaries; auto: request images when uncertain; image: image-first.
+visual_mode = "auto"
+base_url = "http://localhost:8000/v1"
+api_key = ""
+model = ""
+reasoning_effort = "auto"
+max_tokens = 4096
+# Read timeout (seconds); SSE permits long generation with ongoing deltas.
+timeout = 180
+stream = true
+show_stream_output = true
+stream_include_usage = true
+seed = 42
+temperature = 0.2
+retry_change_seed = true
+max_retries = 2
+retry_interval = 1.0
+cache_dir = ".cache/grading"
+# Generate separate annotated PDFs for adopted submissions (no source changes).
+annotate_pdf = true
+# Empty: use the Japanese font bundled with MuPDF; or specify a TTF/OTF/TTC path.
+annotation_font = ""
+annotation_font_size = 10
