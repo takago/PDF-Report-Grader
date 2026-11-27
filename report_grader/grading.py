@@ -17,7 +17,7 @@ from urllib.request import Request, urlopen
 import pymupdf as pdf
 import numpy as np
 import cv2
-from .visual_analysis import render, register, mask_rect, read_stream, RetryableResponse, OutputLimit, public_error, log_api_error
+from .visual_analysis import render, register, mask_rect, read_stream, RetryableResponse, OutputLimit, public_error, log_api_error, SchemaValidationError
 
 COLUMNS = ['AI点数', 'AI採点理由', 'AI採点状態']
 VERSION = 2
@@ -227,28 +227,29 @@ class Grader:
         def validate(obj):
             strict_keys(obj,['judgements'])
             items=obj['judgements']
-            if not isinstance(items,list) or len(items)!=len(expected): raise ValueError('Missing/extra judgements')
+            if not isinstance(items,list) or len(items)!=len(expected): raise SchemaValidationError('Missing/extra judgements')
             seen=set()
             for item in items:
                 strict_keys(item,['label','decision','reason','pages','evidence'])
                 label=item['label']
-                if not isinstance(label,str) or label not in expected or label in seen: raise ValueError('Invalid/duplicate label')
+                if not isinstance(label,str) or label not in expected or label in seen: raise SchemaValidationError('Invalid/duplicate label')
                 seen.add(label)
                 allowed=('PASS','DEDUCT','UNKNOWN','NEED_IMAGE') if image_pages is None else ('PASS','DEDUCT','UNKNOWN')
-                if item['decision'] not in allowed or not isinstance(item['reason'],str) or not item['reason'].strip(): raise ValueError('Invalid judgement')
+                if item['decision'] not in allowed or not isinstance(item['reason'],str) or not item['reason'].strip(): raise SchemaValidationError('Invalid judgement')
                 pages=item['pages']
-                if not isinstance(pages,list) or any(type(x) is not int or not 1<=x<=page_count for x in pages) or len(set(pages))!=len(pages): raise ValueError('Invalid requested pages')
-                if not isinstance(item['evidence'],list) or len(item['evidence'])>20: raise ValueError('Invalid evidence')
+                if not isinstance(pages,list) or any(type(x) is not int or not 1<=x<=page_count for x in pages) or len(set(pages))!=len(pages): raise SchemaValidationError('Invalid requested pages')
+                if not isinstance(item['evidence'],list) or len(item['evidence'])>20: raise SchemaValidationError('Invalid evidence')
                 for entry in item['evidence']:
                     strict_keys(entry,['source','page','field','quote'])
-                    if entry['source'] not in ('form','description','image') or not isinstance(entry['field'],str) or not isinstance(entry['quote'],str) or not entry['quote'].strip(): raise ValueError('Invalid evidence source')
-                    if type(entry['page']) is not int or not 0<=entry['page']<=page_count: raise ValueError('Invalid evidence page')
-                    if entry['source']=='form' and (entry['page']!=0 or not entry['field']): raise ValueError('Invalid form evidence')
-                    if entry['source']!='form' and (entry['page']==0 or entry['field']): raise ValueError('Invalid visual evidence')
-                    if entry['source']=='image' and (image_pages is None or entry['page'] not in image_pages): raise ValueError('Unseen evidence image')
-                if item['decision']=='NEED_IMAGE' and not pages: raise ValueError('Missing requested pages')
-                if image_pages is not None and any(x not in image_pages for x in pages): raise ValueError('Unseen image page')
-                if image_pages is not None and item['decision']=='DEDUCT' and not pages: raise ValueError('Missing image evidence page')
+                    if entry['source'] not in ('form','description','image') or not isinstance(entry['field'],str) or not isinstance(entry['quote'],str): raise SchemaValidationError('Invalid evidence source/type')
+                    if entry['source']!='form' and not entry['quote'].strip(): raise SchemaValidationError('Empty visual evidence quote')
+                    if type(entry['page']) is not int or not 0<=entry['page']<=page_count: raise SchemaValidationError('Invalid evidence page')
+                    if entry['source']=='form' and (entry['page']!=0 or not entry['field']): raise SchemaValidationError('Invalid form evidence')
+                    if entry['source']!='form' and (entry['page']==0 or entry['field']): raise SchemaValidationError('Invalid visual evidence')
+                    if entry['source']=='image' and (image_pages is None or entry['page'] not in image_pages): raise SchemaValidationError('Unseen evidence image')
+                if item['decision']=='NEED_IMAGE' and not pages: raise SchemaValidationError('Missing requested pages')
+                if image_pages is not None and any(x not in image_pages for x in pages): raise SchemaValidationError('Unseen image page')
+                if image_pages is not None and item['decision']=='DEDUCT' and not pages: raise SchemaValidationError('Missing image evidence page')
             return obj
         return validate
 
@@ -269,7 +270,7 @@ class Grader:
               '複合条件では必要な要素をすべて確認する。ページやfieldsはヒントであり、関連情報を参照する。'
               'reasonには最終判定の具体的根拠を簡潔に記述し、推測を確定判定にしない。'
               '各条件を一度ずつ返す。JSONのみ: {"judgements":[{"label":"条件名","decision":"PASS","reason":"具体的根拠","pages":[1],"evidence":[{"source":"description","page":1,"field":"","quote":"原文引用"}]}]}。'
-              'evidenceには情報源を記録する。source=formはfieldにID、page=0、quoteに回答原文。source=descriptionはfieldを空文字、pageにページ番号、quoteに認識結果の原文。source=imageはfieldを空文字、pageに画像ページ番号、quoteに実際の観察事実を記述する。')
+              'evidenceには情報源を記録する。source=formはfieldにID、page=0、quoteに回答原文（空欄なら空文字をそのまま返す）。source=descriptionはfieldを空文字、pageにページ番号、quoteに認識結果の原文。source=imageはfieldを空文字、pageに画像ページ番号、quoteに実際の観察事実を記述する。')
         if image:
             base+=('画像を直接比較して視覚条件を判断する。説明より直接観察を優先し、矛盾を解消できなければUNKNOWN。'
                    '画像確認後はNEED_IMAGEを使わない。視覚的なPASS/DEDUCTでは実際に確認した画像ページをpagesに記載し、evidenceに具体的な画像観察を記録する。')

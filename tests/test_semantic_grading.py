@@ -103,3 +103,26 @@ class SemanticTest(unittest.TestCase):
             g.image_batch.side_effect=[err] if stage=='initial' else [{RULE['label']:judgement(RULE,'DEDUCT',[1])},err]
             out=g.grade(ROW,'pdf');self.assertEqual(out['AI採点状態'],'REVIEW');self.assertEqual(out['AI点数'],3)
             self.assertIn('有効な判定結果',out['AI採点理由']);self.assertNotIn('RetryableResponse',out['AI採点理由']);self.assertNotIn('Invalid structured',out['AI採点理由'])
+
+    def test_blank_form_quote_valid_in_both_stages(self):
+        rule=dict(RULE,fields=['Q2']); item=dict(label=rule['label'],decision='DEDUCT',reason='未記入',pages=[1],evidence=[dict(source='form',page=0,field='Q2',quote='')])
+        for pages in (None,[1]):
+            validate=Grader.batch_validator([rule],2,pages)
+            self.assertEqual(validate(batch(item)),batch(item))
+            for bad in (dict(source='form',page=1,field='Q2',quote=''),dict(source='form',page=0,field='',quote=''),dict(source='form',page=0,field='Q2',quote=None),dict(source='description',page=1,field='',quote=''),dict(source='image',page=1,field='',quote=' ')):
+                with self.assertRaises(ValueError): validate(batch(dict(item,evidence=[bad])))
+
+    def test_blank_submission_scores_minimum(self):
+        g=self.make(); g.tasks=['Q1','Q2','Q3','Q7']; row=dict(ROW,extra_p1='追加記入なし',extra_p2='追加記入なし')
+        rules=[]; items=[]
+        for n,(field,points,page) in enumerate([('Q1',1,1),('Q2',1,1),('Q3',2,1),('',2,1),('',1,2),('',1,2)]):
+            r=dict(RULE,label=f'未記入{n}',deduction=points,fields=[field] if field else [],pages=[page]); rules.append(r)
+            if field: row[field]='';row[field+'_chars']=0
+            ev=dict(source='form',page=0,field=field,quote='') if field else dict(source='description',page=page,field='',quote='追加記入なし')
+            items.append(dict(label=r['label'],decision='DEDUCT',reason='未記入',pages=[page],evidence=[ev]))
+        for label in ('周期','デューティ比'):
+            r=dict(RULE,label=label); rules.append(r); items.append(dict(label=label,decision='PASS',reason='未記入の減点と重複しない',pages=[1],evidence=[dict(source='description',page=1,field='',quote='追加記入なし')]))
+        row['Q7_chars']=0
+        g.plan=dict(maximum=10,minimum_submitted=1,missing_score=0,unrelated_score=1,rules=rules+[dict(RULE,label='考察不足',kind='char_count_below',fields=['Q7'],threshold=200)],warnings=[])
+        g.ask_json.side_effect=lambda prompt,data,validator: validator(batch(*(i for i in items if i['label'] in {r['label'] for r in data['rules']})))
+        out=g.grade(row,'pdf'); self.assertEqual(out['AI点数'],1);self.assertEqual(out['AI採点状態'],'OK');self.assertEqual(g.ask_json.call_count,2);g.image_batch.assert_not_called()

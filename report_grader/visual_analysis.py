@@ -70,6 +70,10 @@ def public_error(exc):
     return 'AIによる判定処理を完了できませんでした'
 
 
+class SchemaValidationError(ValueError):
+    """Static, safe-to-log schema validation message (no response data)."""
+
+
 def log_api_error(timing, label, exc):
     message=public_error(exc)
     if getattr(timing,'level','normal')=='debug':
@@ -79,6 +83,8 @@ def log_api_error(timing, label, exc):
             cause=exc.__cause__
             if isinstance(cause,json.JSONDecodeError):
                 message+=f' / JSON syntax: {cause.msg} (line {cause.lineno}, column {cause.colno})'
+            elif isinstance(cause,SchemaValidationError):
+                message+=' / Schema validation: '+str(cause)
             else: message+=' / '+type(cause).__name__
     print(f'  {label}: {message}',flush=True)
 
